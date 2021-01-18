@@ -178,7 +178,7 @@ def get_mnist_loaders(data_aug=False, batch_size=128, test_batch_size=1000, perc
         transforms.ToTensor(),
     ])
 
-    train_loader = DataLoader(
+        train_loader = DataLoader(
         datasets.MNIST(root='.data/mnist', train=True, download=True, transform=transform_train), batch_size=batch_size,
         shuffle=True, num_workers=2, drop_last=True
     )
@@ -190,6 +190,63 @@ def get_mnist_loaders(data_aug=False, batch_size=128, test_batch_size=1000, perc
 
     test_loader = DataLoader(
         datasets.MNIST(root='.data/mnist', train=False, download=True, transform=transform_test),
+        batch_size=test_batch_size, shuffle=False, num_workers=2, drop_last=True
+    )
+
+    return train_loader, test_loader, train_eval_loader
+
+
+#The output of the MNIST data loader are tensors of 32^2 = 1024 x 1
+
+def get_cifar10_loaders(data_aug=False, batch_size=128, test_batch_size=1000, perc=1.0):
+#import from Berkely Data Loader
+        if name == 'cifar10':
+                num_classes = 10
+                transform_train = transforms.Compose([
+                    transforms.RandomCrop(32, padding=4),
+                    transforms.RandomHorizontalFlip(),
+                    transforms.ToTensor(),
+                    tensor_type_transformer(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                         (0.2023, 0.1994, 0.2010)),
+                ])
+
+                transform_test = transforms.Compose([
+                    transforms.ToTensor(),
+                    tensor_type_transformer(),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                         (0.2023, 0.1994, 0.2010)),
+                ])
+
+                train_dataset = datasets.CIFAR10(
+                    root='../data',
+                    train=True,
+                    download=True,
+                    transform=transform_train)
+
+                test_dataset = datasets.CIFAR10(
+                    root='../data',
+                    train=False,
+                    download=False,
+                    transform=transform_test)
+        #End import from Berkely Data Loader
+
+        #og code sets transform_test 
+        #and transform_train im overriding with how berkely loads CIFAR10
+
+
+    train_loader = DataLoader(
+        train_dataset,
+        shuffle=True, num_workers=2, drop_last=True
+    )
+
+    train_eval_loader = DataLoader(
+        train_dataset,
+        batch_size=test_batch_size, shuffle=False, num_workers=2, drop_last=True
+    )
+
+    test_loader = DataLoader(
+        test_dataset,
         batch_size=test_batch_size, shuffle=False, num_workers=2, drop_last=True
     )
 
@@ -330,6 +387,8 @@ if __name__ == '__main__':
     f_nfe_meter = RunningAverageMeter()
     b_nfe_meter = RunningAverageMeter()
     end = time.time()
+
+    print(model)
 
     for itr in range(args.nepochs * batches_per_epoch):
 
