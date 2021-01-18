@@ -177,10 +177,8 @@ def get_mnist_loaders(data_aug=False, batch_size=128, test_batch_size=1000, perc
     transform_test = transforms.Compose([
         transforms.ToTensor(),
     ])
-
-        train_loader = DataLoader(
-        datasets.MNIST(root='.data/mnist', train=True, download=True, transform=transform_train), batch_size=batch_size,
-        shuffle=True, num_workers=2, drop_last=True
+    train_loader = DataLoader(
+        datasets.MNIST(root='.data/mnist', train=True, download=True, transform=transform_train), batch_size=batch_size, shuffle=True, num_workers=2, drop_last=True
     )
 
     train_eval_loader = DataLoader(
@@ -200,57 +198,60 @@ def get_mnist_loaders(data_aug=False, batch_size=128, test_batch_size=1000, perc
 
 def get_cifar10_loaders(data_aug=False, batch_size=128, test_batch_size=1000, perc=1.0):
 #import from Berkely Data Loader
-        if name == 'cifar10':
-                num_classes = 10
-                transform_train = transforms.Compose([
-                    transforms.RandomCrop(32, padding=4),
-                    transforms.RandomHorizontalFlip(),
-                    transforms.ToTensor(),
-                    tensor_type_transformer(),
-                    transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                         (0.2023, 0.1994, 0.2010)),
-                ])
+#removed transformer() in data pipeline, in berkely code it defaults to
+#identity, i need to check if the implementing code passing an overriding
+#parameters when its called
 
-                transform_test = transforms.Compose([
-                    transforms.ToTensor(),
-                    tensor_type_transformer(),
-                    transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                         (0.2023, 0.1994, 0.2010)),
-                ])
+        num_classes = 10
+        transform_train = transforms.Compose([
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            #convert 3 channel rgb to 1 (gray)
+            #transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                 (0.2023, 0.1994, 0.2010)),
+            transforms.ToPILImage(),
+            transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor()
+        ])
 
-                train_dataset = datasets.CIFAR10(
-                    root='../data',
-                    train=True,
-                    download=True,
-                    transform=transform_train)
+        transform_test = transforms.Compose([
+            #convert 3 channel rgb to 1 (gray)
+            #transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor(),
+            transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                 (0.2023, 0.1994, 0.2010)),
+            transforms.ToPILImage(),
+            transforms.Grayscale(num_output_channels=1),
+            transforms.ToTensor()
+        ])
 
-                test_dataset = datasets.CIFAR10(
-                    root='../data',
-                    train=False,
-                    download=False,
-                    transform=transform_test)
-        #End import from Berkely Data Loader
+        train_dataset = datasets.CIFAR10(
+            root='../data',
+            train=True,
+            download=True,
+            transform=transform_train)
 
-        #og code sets transform_test 
-        #and transform_train im overriding with how berkely loads CIFAR10
+        test_dataset = datasets.CIFAR10(
+            root='../data',
+            train=False,
+            download=False,
+            transform=transform_test)
 
+        train_loader = DataLoader(
+            train_dataset,shuffle=True, num_workers=2, drop_last=True
+        )
 
-    train_loader = DataLoader(
-        train_dataset,
-        shuffle=True, num_workers=2, drop_last=True
-    )
+        train_eval_loader = DataLoader(
+            train_dataset,batch_size=test_batch_size, shuffle=False, num_workers=2, drop_last=True
+        )
 
-    train_eval_loader = DataLoader(
-        train_dataset,
-        batch_size=test_batch_size, shuffle=False, num_workers=2, drop_last=True
-    )
+        test_loader = DataLoader(
+            test_dataset,batch_size=test_batch_size, shuffle=False, num_workers=2, drop_last=True
+        )
 
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=test_batch_size, shuffle=False, num_workers=2, drop_last=True
-    )
-
-    return train_loader, test_loader, train_eval_loader
+        return train_loader, test_loader, train_eval_loader
 
 
 def inf_generator(iterable):
@@ -368,9 +369,14 @@ if __name__ == '__main__':
 
     criterion = nn.CrossEntropyLoss().to(device)
 
-    train_loader, test_loader, train_eval_loader = get_mnist_loaders(
+    #replace the data set here 
+    #train_loader, test_loader, train_eval_loader = get_mnist_loaders(
+    #    args.data_aug, args.batch_size, args.test_batch_size
+    #)
+    train_loader, test_loader, train_eval_loader = get_cifar10_loaders(
         args.data_aug, args.batch_size, args.test_batch_size
     )
+
 
     data_gen = inf_generator(train_loader)
     batches_per_epoch = len(train_loader)
