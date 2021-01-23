@@ -163,39 +163,7 @@ class RunningAverageMeter(object):
         self.val = val
 
 
-def get_mnist_loaders(data_aug=False, batch_size=128, test_batch_size=1000, perc=1.0):
-    if data_aug:
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(28, padding=4),
-            transforms.ToTensor(),
-        ])
-    else:
-        transform_train = transforms.Compose([
-            transforms.ToTensor(),
-        ])
-
-    transform_test = transforms.Compose([
-        transforms.ToTensor(),
-    ])
-    train_loader = DataLoader(
-        datasets.MNIST(root='.data/mnist', train=True, download=True, transform=transform_train), batch_size=batch_size, shuffle=True, num_workers=2, drop_last=True
-    )
-
-    train_eval_loader = DataLoader(
-        datasets.MNIST(root='.data/mnist', train=True, download=True, transform=transform_test),
-        batch_size=test_batch_size, shuffle=False, num_workers=2, drop_last=True
-    )
-
-    test_loader = DataLoader(
-        datasets.MNIST(root='.data/mnist', train=False, download=True, transform=transform_test),
-        batch_size=test_batch_size, shuffle=False, num_workers=2, drop_last=True
-    )
-
-    return train_loader, test_loader, train_eval_loader
-
-
 #The output of the MNIST data loader are tensors of 32^2 = 1024 x 1
-
 def get_cifar10_loaders(data_aug=False, batch_size=128, test_batch_size=1000, perc=1.0):
 #import from Berkely Data Loader
 #removed transformer() in data pipeline, in berkely code it defaults to
@@ -207,7 +175,6 @@ def get_cifar10_loaders(data_aug=False, batch_size=128, test_batch_size=1000, pe
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
             #convert 3 channel rgb to 1 (gray)
-            #transforms.Grayscale(num_output_channels=1),
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465),
                                  (0.2023, 0.1994, 0.2010)),
@@ -218,7 +185,6 @@ def get_cifar10_loaders(data_aug=False, batch_size=128, test_batch_size=1000, pe
 
         transform_test = transforms.Compose([
             #convert 3 channel rgb to 1 (gray)
-            #transforms.Grayscale(num_output_channels=1),
             transforms.ToTensor(),
             transforms.Normalize((0.4914, 0.4822, 0.4465),
                                  (0.2023, 0.1994, 0.2010)),
@@ -339,6 +305,17 @@ if __name__ == '__main__':
     logger.info(args)
 
     device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 'cpu')
+    #what device is being used?
+    print('Using device:', device)
+    print()
+
+    #Additional Info when using cuda
+    if device.type == 'cuda':
+        print(torch.cuda.get_device_name(0))
+        print('Memory Usage:')
+        print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
+        print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+
 
     is_odenet = args.network == 'odenet'
 
