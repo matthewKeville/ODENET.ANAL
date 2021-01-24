@@ -163,34 +163,52 @@ class RunningAverageMeter(object):
         self.val = val
 
 
-#The output of the MNIST data loader are tensors of 32^2 = 1024 x 1
 def get_cifar10_loaders(data_aug=False, batch_size=128, test_batch_size=1000, perc=1.0):
-#import from Berkely Data Loader
-#removed transformer() in data pipeline, in berkely code it defaults to
-#identity, i need to check if the implementing code passing an overriding
-#parameters when its called
+#Berkely ODENET does some data preprocessing for CIFAR-10
+# It normalizes and does random horizontal flips
+# This differs from ODENET original pipeline for MNIST where no
+# normalization takes place (why?) 
+# In any case I'm leaving out Berkelys preprocessing 
+# and just converting CIFAR to resized gray scale to match
+# MNIST
 
-        num_classes = 10
-        transform_train = transforms.Compose([
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            #convert 3 channel rgb to 1 (gray)
-            transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                 (0.2023, 0.1994, 0.2010)),
-            transforms.ToPILImage(),
-            transforms.Grayscale(num_output_channels=1),
-            transforms.ToTensor()
-        ])
+        #data aug is just random crop (identical to MNIST setup
+        if data_aug:
+                transform_train = transforms.Compose([ 
+                    #transforms.RandomHorizontalFlip(),
+                    #convert 3 channel rgb to 1 (gray)
+                    transforms.ToTensor(),
+                    #transforms.Normalize((0.4914, 0.4822, 0.4465),
+                    #                     (0.2023, 0.1994, 0.2010)),
+                    transforms.ToPILImage(),
+                    transforms.Grayscale(num_output_channels=1),
+                    transforms.ToTensor(),
+                    transforms.Resize((28,28)),
+                    transforms.RandomCrop(28, padding=4),
+                ])
+        else:
+                transform_train = transforms.Compose([ 
+                    #transforms.RandomHorizontalFlip(),
+                    #convert 3 channel rgb to 1 (gray)
+                    transforms.ToTensor(),
+                    #transforms.Normalize((0.4914, 0.4822, 0.4465),
+                    #                     (0.2023, 0.1994, 0.2010)),
+                    transforms.ToPILImage(),
+                    transforms.Grayscale(num_output_channels=1),
+                    transforms.ToTensor(),
+                    transforms.Resize((28,28)),
+                ])
+            
 
         transform_test = transforms.Compose([
             #convert 3 channel rgb to 1 (gray)
             transforms.ToTensor(),
-            transforms.Normalize((0.4914, 0.4822, 0.4465),
-                                 (0.2023, 0.1994, 0.2010)),
+            #transforms.Normalize((0.4914, 0.4822, 0.4465),
+            #                     (0.2023, 0.1994, 0.2010)),
             transforms.ToPILImage(),
             transforms.Grayscale(num_output_channels=1),
-            transforms.ToTensor()
+            transforms.ToTensor(),
+            transforms.Resize((28,28))
         ])
 
         train_dataset = datasets.CIFAR10(
@@ -380,6 +398,9 @@ if __name__ == '__main__':
 
         optimizer.zero_grad()
         x, y = data_gen.__next__()
+        samplex = x[0]
+        print("dp shape")
+        print(samplex.shape) 
         x = x.to(device)
         y = y.to(device)
         logits = model(x)
