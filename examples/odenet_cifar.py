@@ -176,39 +176,35 @@ def get_cifar10_loaders(data_aug=False, batch_size=128, test_batch_size=1000, pe
         if data_aug:
                 transform_train = transforms.Compose([ 
                     #transforms.RandomHorizontalFlip(),
-                    #convert 3 channel rgb to 1 (gray)
-                    transforms.ToTensor(),
-                    #transforms.Normalize((0.4914, 0.4822, 0.4465),
-                    #                     (0.2023, 0.1994, 0.2010)),
+                    transforms.ToTensor(), #255 -> [0,1]                 
+                    transforms.Normalize((0.4914, 0.4822, 0.4465),#normalize all 3 chans
+                                         (0.2023, 0.1994, 0.2010)),
                     transforms.ToPILImage(),
-                    transforms.Grayscale(num_output_channels=1),
+                    transforms.Grayscale(num_output_channels=1),#convert 3 to 1 chan
                     transforms.ToTensor(),
-                    transforms.Resize((28,28)),
-                    transforms.RandomCrop(28, padding=4),
+                    transforms.Resize((28,28)),#resize dimens
+                    transforms.RandomCrop(28, padding=4)
                 ])
         else:
                 transform_train = transforms.Compose([ 
-                    #transforms.RandomHorizontalFlip(),
-                    #convert 3 channel rgb to 1 (gray)
                     transforms.ToTensor(),
-                    #transforms.Normalize((0.4914, 0.4822, 0.4465),
-                    #                     (0.2023, 0.1994, 0.2010)),
+                    transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                         (0.2023, 0.1994, 0.2010)),
                     transforms.ToPILImage(),
                     transforms.Grayscale(num_output_channels=1),
                     transforms.ToTensor(),
-                    transforms.Resize((28,28)),
+                    transforms.Resize((28,28))
                 ])
             
 
         transform_test = transforms.Compose([
-            #convert 3 channel rgb to 1 (gray)
             transforms.ToTensor(),
-            #transforms.Normalize((0.4914, 0.4822, 0.4465),
-            #                     (0.2023, 0.1994, 0.2010)),
+            transforms.Normalize((0.4914, 0.4822, 0.4465),
+                                 (0.2023, 0.1994, 0.2010)),
             transforms.ToPILImage(),
             transforms.Grayscale(num_output_channels=1),
             transforms.ToTensor(),
-            transforms.Resize((28,28))
+            transforms.Resize((28,28)),
         ])
 
         train_dataset = datasets.CIFAR10(
@@ -220,11 +216,11 @@ def get_cifar10_loaders(data_aug=False, batch_size=128, test_batch_size=1000, pe
         test_dataset = datasets.CIFAR10(
             root='../data',
             train=False,
-            download=False,
+            download=True,
             transform=transform_test)
 
         train_loader = DataLoader(
-            train_dataset,shuffle=True, num_workers=2, drop_last=True
+            train_dataset,batch_size=batch_size, shuffle=True, num_workers=2, drop_last=True
         )
 
         train_eval_loader = DataLoader(
@@ -375,6 +371,7 @@ if __name__ == '__main__':
 
     data_gen = inf_generator(train_loader)
     batches_per_epoch = len(train_loader)
+    #print(str(len(train_loader))+ " length of train loader ..")
 
     lr_fn = learning_rate_with_decay(
         args.batch_size, batch_denom=128, batches_per_epoch=batches_per_epoch, boundary_epochs=[60, 100, 140],
@@ -398,9 +395,9 @@ if __name__ == '__main__':
 
         optimizer.zero_grad()
         x, y = data_gen.__next__()
-        samplex = x[0]
-        print("dp shape")
-        print(samplex.shape) 
+        #print("dp shape")
+        #print(x.shape) 
+        #print(y.shape)
         x = x.to(device)
         y = y.to(device)
         logits = model(x)
