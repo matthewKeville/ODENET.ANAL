@@ -2,14 +2,13 @@ import torch
 import torch.nn as nn
 from .odeint import SOLVERS, odeint
 from .misc import _check_inputs, _flat_to_shape, _rms_norm, _mixed_linf_rms_norm, _wrap_norm
-
+import tensortrack
 
 class OdeintAdjointMethod(torch.autograd.Function):
 
     @staticmethod
     def forward(ctx, shapes, func, y0, t, rtol, atol, method, options, adjoint_rtol, adjoint_atol, adjoint_method,
                 adjoint_options, t_requires_grad, *adjoint_params):
-
         ctx.shapes = shapes
         ctx.func = func
         ctx.adjoint_rtol = adjoint_rtol
@@ -18,9 +17,19 @@ class OdeintAdjointMethod(torch.autograd.Function):
         ctx.adjoint_options = adjoint_options
         ctx.t_requires_grad = t_requires_grad
 
+        print(str(y0.shape)+"   from forward ini")
+        print(str(y0[0][0][0]))
+
+
+        #tensortrack.add_forward_initial_itr(y0)
+
         with torch.no_grad():
             y = odeint(func, y0, t, rtol=rtol, atol=atol, method=method, options=options)
         ctx.save_for_backward(t, y, *adjoint_params)
+
+        print(str(y.shape)+" from forward final") 
+        print(str(y[0][0][0]))
+
         return y
 
     @staticmethod
@@ -36,6 +45,11 @@ class OdeintAdjointMethod(torch.autograd.Function):
 
             t, y, *adjoint_params = ctx.saved_tensors
             adjoint_params = tuple(adjoint_params)
+
+            print(str(y.shape)+"   from backward")
+            print(str(y[0].shape)+" from backward")
+
+            print(str(y[0][0][0][0]))
 
             ##################################
             #     Set up adjoint_options     #

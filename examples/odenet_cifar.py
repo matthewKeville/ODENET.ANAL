@@ -8,6 +8,10 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
+import sys
+sys.path.append("..")
+import tensortrack
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--network', type=str, choices=['resnet', 'odenet'], default='odenet')
@@ -23,6 +27,9 @@ parser.add_argument('--test_batch_size', type=int, default=1000)
 parser.add_argument('--save', type=str, default='./experiment1')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--gpu', type=int, default=0)
+#My Custom Arguments
+parser.add_argument('--node', type=int, default=1)
+
 args = parser.parse_args()
 
 if args.adjoint:
@@ -349,8 +356,9 @@ if __name__ == '__main__':
             ResBlock(64, 64, stride=2, downsample=conv1x1(64, 64, 2)),
             ResBlock(64, 64, stride=2, downsample=conv1x1(64, 64, 2)),
         ]
-
-    feature_layers = [ODEBlock(ODEfunc(64))] if is_odenet else [ResBlock(64, 64) for _ in range(6)]
+    #ODENET architecture only has 1 ODE block 
+    num_odeblocks = args.node
+    feature_layers = [ODEBlock(ODEfunc(64))]*num_odeblocks if is_odenet else [ResBlock(64, 64) for _ in range(6)]
     fc_layers = [norm(64), nn.ReLU(inplace=True), nn.AdaptiveAvgPool2d((1, 1)), Flatten(), nn.Linear(64, 10)]
 
     model = nn.Sequential(*downsampling_layers, *feature_layers, *fc_layers).to(device)
@@ -388,16 +396,17 @@ if __name__ == '__main__':
 
     print(model)
 
+
+    #anal class
+
+
     for itr in range(args.nepochs * batches_per_epoch):
 
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr_fn(itr)
 
         optimizer.zero_grad()
-        x, y = data_gen.__next__()
-        #print("dp shape")
-        #print(x.shape) 
-        #print(y.shape)
+        x, y = data_gen.__next__() 
         x = x.to(device)
         y = y.to(device)
         logits = model(x)
