@@ -29,6 +29,9 @@ parser.add_argument('--debug', action='store_true')
 parser.add_argument('--gpu', type=int, default=0)
 #My Custom Arguments
 parser.add_argument('--node', type=int, default=1)
+parser.add_argument('--force_cpu', type=eval, default=False, choices=[True, False])
+parser.add_argument('--time_steps', type=int, default=1)
+parser.add_argument('--time_range', type=int, default=1)
 
 args = parser.parse_args()
 
@@ -125,7 +128,11 @@ class ODEBlock(nn.Module):
     def __init__(self, odefunc):
         super(ODEBlock, self).__init__()
         self.odefunc = odefunc
-        self.integration_time = torch.tensor([0, 1]).float()
+        #edit for arbitrary intervals -MK
+        self.time_range = args.time_range
+        self.time_steps = args.time_steps
+        self.times = [self.time_range*x/self.time_steps for x in range(self.time_steps+1)]
+        self.integration_time = torch.tensor(self.times).float()
 
     def forward(self, x):
         self.integration_time = self.integration_time.type_as(x)
@@ -325,7 +332,13 @@ if __name__ == '__main__':
     logger = get_logger(logpath=os.path.join(args.save, 'logs'), filepath=os.path.abspath(__file__))
     logger.info(args)
 
-    device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 'cpu')
+    #override gpu preference if force_cpu 
+    #my computer has cuda, but torch doesnt support my gpu...
+    if (args.force_cpu):
+        device = torch.device('cpu')
+    else:
+        device = torch.device('cuda:' + str(args.gpu) if torch.cuda.is_available() else 'cpu')
+
     #what device is being used?
     print('Using device:', device)
     print()
@@ -336,6 +349,7 @@ if __name__ == '__main__':
         print('Memory Usage:')
         print('Allocated:', round(torch.cuda.memory_allocated(0)/1024**3,1), 'GB')
         print('Cached:   ', round(torch.cuda.memory_reserved(0)/1024**3,1), 'GB')
+
 
 
     is_odenet = args.network == 'odenet'
