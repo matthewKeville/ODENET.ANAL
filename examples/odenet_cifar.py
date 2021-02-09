@@ -371,6 +371,7 @@ if __name__ == '__main__':
             ResBlock(64, 64, stride=2, downsample=conv1x1(64, 64, 2)),
         ]
     #ODENET architecture only has 1 ODE block 
+    #I added the ability to extend it with node flag
     num_odeblocks = args.node
     feature_layers = [ODEBlock(ODEfunc(64))]*num_odeblocks if is_odenet else [ResBlock(64, 64) for _ in range(6)]
     fc_layers = [norm(64), nn.ReLU(inplace=True), nn.AdaptiveAvgPool2d((1, 1)), Flatten(), nn.Linear(64, 10)]
@@ -411,16 +412,21 @@ if __name__ == '__main__':
     print(model)
 
 
-    #anal class
+    #the logic below dictates that the first training batch is analyzed
+    #then optimized, then the entire test set is analyzed but not optimized
+    #then the remaining batches for the entire first epoch are analyzed and 
+    #optimized
 
+    tensortrack.init(args.node,args.time_steps,args.batch_size,args.nepochs)
 
     for itr in range(args.nepochs * batches_per_epoch):
 
+        tensortrack.set_training(True)
         for param_group in optimizer.param_groups:
             param_group['lr'] = lr_fn(itr)
 
         optimizer.zero_grad()
-        x, y = data_gen.__next__() 
+        x, y = data_gen.__next__()
         x = x.to(device)
         y = y.to(device)
         logits = model(x)
@@ -433,6 +439,11 @@ if __name__ == '__main__':
         loss.backward()
         optimizer.step()
 
+        #batch is finished compute instability
+        tensortrack.compute_norm()
+        tensortrack.reset_arrays()
+        #print(tensortrack.get_norms())
+
         if is_odenet:
             nfe_backward = feature_layers[0].nfe
             feature_layers[0].nfe = 0
@@ -444,6 +455,8 @@ if __name__ == '__main__':
         end = time.time()
 
         if itr % batches_per_epoch == 0:
+            #pass training state to tensortracker
+            tensortrack.set_training(False)
             with torch.no_grad():
                 train_acc = accuracy(model, train_eval_loader)
                 val_acc = accuracy(model, test_loader)
@@ -457,3 +470,5 @@ if __name__ == '__main__':
                         b_nfe_meter.avg, train_acc, val_acc
                     )
                 )
+    tensortrack.save()
+

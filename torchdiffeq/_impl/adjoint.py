@@ -4,6 +4,7 @@ from .odeint import SOLVERS, odeint
 from .misc import _check_inputs, _flat_to_shape, _rms_norm, _mixed_linf_rms_norm, _wrap_norm
 import tensortrack
 import numpy as np
+from timeit import default_timer as timer
 
 class OdeintAdjointMethod(torch.autograd.Function):
 
@@ -18,27 +19,37 @@ class OdeintAdjointMethod(torch.autograd.Function):
         ctx.adjoint_options = adjoint_options
         ctx.t_requires_grad = t_requires_grad
 
+        if tensortrack.is_training():
+            start = timer()
 
-
-        #tensortrack.add_forward_initial_itr(y0)
 
         with torch.no_grad():
             y = odeint(func, y0, t, rtol=rtol, atol=atol, method=method, options=options)
         ctx.save_for_backward(t, y, *adjoint_params)
-        #convert to numpy
-        ynump = y.numpy()
-        #cut last iterate (yf)
-        ynumpcut = ynump[0:-1]
-        #convert back to tensor
-        yc = torch.from_numpy(ynumpcut)
-        #add to tensortrack
-        tensortrack.add_forward_itr(yc)
 
-        print("Forward Solve")
-        #print the solve for each time step
-        for x in range(len(t)-1):
-            print(str(yc[x][0][0][0]))
 
+
+        if tensortrack.is_training():
+                #end of computation time
+                comp_time = timer() - start
+                #convert to numpy
+                ynump = y.numpy()
+                #cut last iterate (yf)
+                ynumpcut = ynump[0:-1]
+                #convert back to tensor
+                yc = torch.from_numpy(ynumpcut)
+                #add to tensortrack
+                tensortrack.add_forward_itr(yc)
+                #end of storage time
+                stor_time = (timer() - start) - comp_time
+
+                print("Forward Solve time : " + str(comp_time))
+                print("Storage Time : " + str(stor_time))
+
+                #print the solve for each time step
+                for x in range(len(t)-1):
+                    print(str(yc[x][0][0][0]))
+                print("")
 
         return y
 
@@ -137,8 +148,10 @@ class OdeintAdjointMethod(torch.autograd.Function):
             #       Solve adjoint ODE        #
             ##################################
 
-            print("backward solve")
-            hidden = []
+            if tensortrack.is_training():
+                    print("backward solve")
+                    hidden = []
+                    start = timer()
 
             if t_requires_grad:
                 time_vjps = torch.empty(len(t), dtype=t.dtype, device=t.device)
@@ -162,11 +175,11 @@ class OdeintAdjointMethod(torch.autograd.Function):
                 aug_state = [a[1] for a in aug_state]  # extract just the t[i - 1] value
                 #dont resassign aug_state : we want to estimate the hidden state, not cheat... -MK
                 #aug_state[1] = y[i - 1]  # update to use our forward-pass estimate of the state
-
-                #I was having a really hard time copy the values of a torch tensor to a list
-                #best way to copy by value was to convert them to numpy arrays ....
-                hi = aug_state[1].numpy()
-                hidden.append(hi)
+                if tensortrack.is_training():
+                        #I was having a really hard time copy the values of a torch tensor to a list
+                        #best way to copy by value was to convert them to numpy arrays ....
+                        hi = aug_state[1].numpy()
+                        hidden.append(hi)
 
                 aug_state[2] += grad_y[i - 1]  # update any gradients wrt state at this time point
 
@@ -176,13 +189,19 @@ class OdeintAdjointMethod(torch.autograd.Function):
             adj_y = aug_state[2]
             adj_params = aug_state[3:]
 
-            #convert list of np lists into np list
-            nphidden = np.asarray(hidden)
-            hidden = torch.from_numpy(nphidden)
-            #add tensor to tensortracker
-            tensortrack.add_backward_itr(hidden)
-            for x in range(len(t)-1):
-                print(str(hidden[x][0][0][0]))
+            if tensortrack.is_training():
+                    comp_time = timer() - start
+                    #convert list of np lists into np list
+                    nphidden = np.asarray(hidden)
+                    hidden = torch.from_numpy(nphidden)
+                    #add tensor to tensortracker
+                    tensortrack.add_backward_itr(hidden)
+                    stor_time = timer() - start - comp_time
+                    print("Backward Solve time : " + str(comp_time))
+                    print("Storage Time : " + str(stor_time))
+                    for x in range(len(t)-1):
+                        print(str(hidden[x][0][0][0]))
+                    print("")
 
         return (None, None, adj_y, time_vjps, None, None, None, None, None, None, None, None, None, *adj_params)
 
