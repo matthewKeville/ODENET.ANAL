@@ -9,13 +9,10 @@ import matplotlib.gridspec as gridspec
 #then store the backward pass values on each batch
 #compute the tensor norm of the difference between the
 #the estimates of the hidden state and the objective hidden state
-
 #as each call to the forward pass is made, its iterates 
 #are added to forward_batch
-
 #then as the last backward iterate is added to backward_batch
 #the norm is computed and add to the norm list
-
 #forward_batch shape ( num_ode_blocks x time_steps x batch_size x hidden_state_shape)
 #hidden_state_shape in odenet_cifar = ( 64 x 6 x 6)
 forward_batch = np.empty([])
